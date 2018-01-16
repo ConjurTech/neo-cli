@@ -8,6 +8,10 @@ namespace Neo
     {
         public virtual DbSet<Events> Events { get; set; }
 
+        public neocliContext(DbContextOptions<neocliContext> options)
+            : base(options)
+        { }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
