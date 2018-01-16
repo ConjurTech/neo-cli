@@ -10,12 +10,6 @@ namespace Neo
     {
           internal static Wallet Wallet;
 
-          private static string Host = "localhost";
-          private static string User = "postgres";
-          private static string DBname = "neocli";
-          private static string Password = "postgres";
-          private static string Port = "5432";
-
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             using (FileStream fs = new FileStream("error.log", FileMode.Create, FileAccess.Write, FileShare.None))
@@ -27,14 +21,11 @@ namespace Neo
 
         static void Main(string[] args)
         {
-            string connString =
-                String.Format(
-                    "Server={0}; User Id={1}; Database={2}; Port={3}; Password={4}; SSL Mode=Prefer; Trust Server Certificate=true",
-                    Host,
-                    User,
-                    DBname,
-                    Port,
-                    Password);
+            var environmentConnectionString = Environment.GetEnvironmentVariable("testdb", EnvironmentVariableTarget.User);
+
+            string connectionString = environmentConnectionString;
+            Console.Out.WriteLine(connectionString);
+            string connString = connectionString + " SSL Mode = Prefer; Trust Server Certificate = true; ";
 
             var conn = new NpgsqlConnection(connString);
             conn.Open();
