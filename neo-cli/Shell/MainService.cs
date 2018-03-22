@@ -861,7 +861,7 @@ namespace Neo.Shell
                 }
                 if (log)
                     LevelDBBlockchain.ApplicationExecuted += LevelDBBlockchain_ApplicationExecuted;
-                    StateReader.Notify += OnStateReaderNotify;
+                StateReader.Notify += OnStateReaderNotify;
             });
         }
 
@@ -925,7 +925,7 @@ namespace Neo.Shell
                         }
                 }
             }
-            
+
             Console.WriteLine(scriptHash);
             Console.WriteLine(eventPayload);
 
@@ -940,30 +940,103 @@ namespace Neo.Shell
                 eventPayload = eventPayload,
                 eventTime = Blockchain.Default.GetBlock(Blockchain.Default.Height).Timestamp
             };
+            WriteToPsql(sc_event);
         }
 
         private static void WriteToPsql(SmartContractEvent contractEvent)
         {
 
-            string connString = "Server=localhost; User Id=myuser; Database=neonode; Port=5432; Password=mypass; SSL Mode=Prefer; Trust Server Certificate=true";
+            string connString = "Server=localhost; User Id=postgres; Database=neonode; Port=5432; Password=postgres; SSL Mode=Prefer; Trust Server Certificate=true";
 
             using (var conn = new NpgsqlConnection(connString))
             {
+                conn.Open();
                 using (var cmd = new NpgsqlCommand(
                     "INSERT INTO events (block_number, transaction_hash, contract_hash, event_type, event_payload, event_time, blockchain) " +
                     "VALUES (@blockNumber, @transactionHash, @contractHash, @eventType, @eventPayload, @eventTime, @blockchain)", conn))
                 {
                     cmd.Parameters.AddWithValue("blockchain", "neo");
-                    cmd.Parameters.AddWithValue("blockNumber", contractEvent.blockNumber);
+                    cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
                     cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
                     cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
                     cmd.Parameters.AddWithValue("eventType", contractEvent.eventType);
-                    cmd.Parameters.AddWithValue("eventTime", contractEvent.eventTime);
+                    cmd.Parameters.AddWithValue("eventTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
                     cmd.Parameters.AddWithValue("eventPayload", NpgsqlDbType.Jsonb, contractEvent.eventPayload.ToString());
-
+                    
                     int nRows = cmd.ExecuteNonQuery();
                     Console.Out.WriteLine(String.Format("Number of rows inserted={0}", nRows));
                 }
+
+                if (contractEvent.eventType == "deek")
+                {
+                    Guid orderId;
+                    // Search orders for same tx hash
+                    using (var cmd = new NpgsqlCommand("SELECT id FROM orders WHERE transaction_hash = @transactionHash ", conn))
+                    {
+                        cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
+                        NpgsqlDataReader reader = cmd.ExecuteReader();
+                        while (reader.Read())
+                        {
+                            orderId = reader.GetGuid(0);
+                        }
+                        Console.Out.WriteLine(String.Format("Found order", orderId));
+                        reader.Close();
+                    }
+
+                    // Insert into orders if there are none with the same tx hash
+                    if (orderId == Guid.Empty)
+                    {
+                        using (var cmd = new NpgsqlCommand(
+                            "INSERT INTO orders (transaction_hash, contract_hash, blockchain)" +
+                            "VALUES (@transactionHash, @contractHash,  @blockchain) returning id", conn))
+                        {
+                            cmd.Parameters.AddWithValue("blockchain", "neo");
+                            cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
+                            cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
+
+                            NpgsqlDataReader reader = cmd.ExecuteReader();
+                            while (reader.Read())
+                            {
+                                orderId = reader.GetGuid(0);
+                            }
+                            Console.Out.WriteLine(String.Format("Insert order", orderId));
+                            reader.Close();
+                        }
+                    }
+                    // Insert into offers using found/created order
+                    var address = contractEvent.eventPayload[0];
+                    var offerHash = contractEvent.eventPayload[1];
+                    var offerAssetId = contractEvent.eventPayload[2];
+                    var offerAmount = contractEvent.eventPayload[3];
+                    var wantAssetId = contractEvent.eventPayload[4];
+                    var wantAmount = contractEvent.eventPayload[5];
+                    var availableAmount = offerAmount;
+
+                    using (var cmd = new NpgsqlCommand(
+                    "INSERT INTO offers (order_id, block_number, transaction_hash, contract_hash, offer_time," +
+                    "blockchain, address, available_amount, offer_hash, offer_asset_id, offer_amount, want_asset_id, want_amount)" +
+                    "VALUES (@orderId, @blockNumber, @transactionHash, @contractHash, @offerTime, @blockchain, @address, " + 
+                    "@availableAmount, @offerHash, @offerAssetId, @offerAmount, @wantAssetId,  @wantAmount)", conn))
+                    {
+                        cmd.Parameters.AddWithValue("orderId", orderId);
+                        cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
+                        cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
+                        cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
+                        cmd.Parameters.AddWithValue("offerTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
+                        cmd.Parameters.AddWithValue("blockchain", "neo");
+                        cmd.Parameters.AddWithValue("address", address);
+                        cmd.Parameters.AddWithValue("availableAmount", availableAmount);
+                        cmd.Parameters.AddWithValue("offerHash", offerHash);
+                        cmd.Parameters.AddWithValue("offerAssetId", offerAssetId);
+                        cmd.Parameters.AddWithValue("offerAmount", offerAmount);
+                        cmd.Parameters.AddWithValue("wantAssetId", wantAssetId);
+                        cmd.Parameters.AddWithValue("wantAmount", wantAmount);
+                        
+                        int nRows = cmd.ExecuteNonQuery();
+                        Console.Out.WriteLine(String.Format("Number of rows inserted={0}", nRows));
+                    }
+                }
+                conn.Close();
             }
         }
 
