@@ -1,19 +1,16 @@
-FROM microsoft/dotnet:2.0-runtime AS base
+FROM microsoft/aspnetcore-build:2.0 AS build-env
 WORKDIR /app
 
-FROM microsoft/dotnet:2.0-sdk AS build
-WORKDIR /src
-COPY *.sln ./
-COPY neo-cli/neo-cli.csproj neo-cli/
+# Copy csproj and restore as distinct layers
+COPY *.csproj ./
 RUN dotnet restore
-COPY . .
-WORKDIR /src/neo-cli
-RUN dotnet build -c Release -o /app
 
-FROM build AS publish
-RUN dotnet publish -c Release -o /app
+# Copy everything else and build
+COPY . ./
+RUN dotnet publish -c Release -o out
 
-FROM base AS final
+# Build runtime image
+FROM microsoft/aspnetcore:2.0
 WORKDIR /app
-COPY --from=publish /app .
+COPY --from=build-env /app/out .
 ENTRYPOINT ["dotnet", "neo-cli.dll"]
