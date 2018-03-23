@@ -22,6 +22,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Npgsql;
 using NpgsqlTypes;
+using System.Numerics;
 
 namespace Neo.Shell
 {
@@ -906,7 +907,7 @@ namespace Neo.Shell
                                         }
                                     default:
                                         {
-                                            eventPayload.Add(dataHexString);
+                                            eventPayload.Add(stack[i].GetBigInteger().ToString());
                                             break;
                                         }
                                 }
@@ -926,9 +927,6 @@ namespace Neo.Shell
                 }
             }
 
-            Console.WriteLine(scriptHash);
-            Console.WriteLine(eventPayload);
-
             Transaction txn = (Transaction)e.ScriptContainer;
 
             var sc_event = new SmartContractEvent
@@ -945,12 +943,12 @@ namespace Neo.Shell
 
         private static void WriteToPsql(SmartContractEvent contractEvent)
         {
-
-            string connString = "Server=localhost; User Id=postgres; Database=neonode; Port=5432; Password=postgres; SSL Mode=Prefer; Trust Server Certificate=true";
-
+            //string connString = "Server=localhost; User Id=postgres; Database=neonode; Port=5432; Password=postgres; SSL Mode=Prefer; Trust Server Certificate=true";
+            string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
             using (var conn = new NpgsqlConnection(connString))
             {
                 conn.Open();
+                // Insert into events table
                 using (var cmd = new NpgsqlCommand(
                     "INSERT INTO events (block_number, transaction_hash, contract_hash, event_type, event_payload, event_time, blockchain) " +
                     "VALUES (@blockNumber, @transactionHash, @contractHash, @eventType, @eventPayload, @eventTime, @blockchain)", conn))
@@ -964,76 +962,39 @@ namespace Neo.Shell
                     cmd.Parameters.AddWithValue("eventPayload", NpgsqlDbType.Jsonb, contractEvent.eventPayload.ToString());
                     
                     int nRows = cmd.ExecuteNonQuery();
-                    Console.Out.WriteLine(String.Format("Number of rows inserted={0}", nRows));
                 }
 
-                if (contractEvent.eventType == "deek")
+                if (contractEvent.eventType == "created")
                 {
-                    Guid orderId;
-                    // Search orders for same tx hash
-                    using (var cmd = new NpgsqlCommand("SELECT id FROM orders WHERE transaction_hash = @transactionHash ", conn))
-                    {
-                        cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
-                        NpgsqlDataReader reader = cmd.ExecuteReader();
-                        while (reader.Read())
-                        {
-                            orderId = reader.GetGuid(0);
-                        }
-                        Console.Out.WriteLine(String.Format("Found order", orderId));
-                        reader.Close();
-                    }
-
-                    // Insert into orders if there are none with the same tx hash
-                    if (orderId == Guid.Empty)
-                    {
-                        using (var cmd = new NpgsqlCommand(
-                            "INSERT INTO orders (transaction_hash, contract_hash, blockchain)" +
-                            "VALUES (@transactionHash, @contractHash,  @blockchain) returning id", conn))
-                        {
-                            cmd.Parameters.AddWithValue("blockchain", "neo");
-                            cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
-                            cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
-
-                            NpgsqlDataReader reader = cmd.ExecuteReader();
-                            while (reader.Read())
-                            {
-                                orderId = reader.GetGuid(0);
-                            }
-                            Console.Out.WriteLine(String.Format("Insert order", orderId));
-                            reader.Close();
-                        }
-                    }
-                    // Insert into offers using found/created order
-                    var address = contractEvent.eventPayload[0];
-                    var offerHash = contractEvent.eventPayload[1];
-                    var offerAssetId = contractEvent.eventPayload[2];
-                    var offerAmount = contractEvent.eventPayload[3];
-                    var wantAssetId = contractEvent.eventPayload[4];
-                    var wantAmount = contractEvent.eventPayload[5];
+                    // Insert into offers table
+                    var address = contractEvent.eventPayload[0].ToString();
+                    var offerHash = contractEvent.eventPayload[1].ToString(); 
+                    var offerAssetId =contractEvent.eventPayload[2].ToString();
+                    var offerAmount = contractEvent.eventPayload[3].AsString(); 
+                    var wantAssetId = contractEvent.eventPayload[4].ToString();
+                    var wantAmount = contractEvent.eventPayload[5].AsString();
                     var availableAmount = offerAmount;
-
+                    
                     using (var cmd = new NpgsqlCommand(
-                    "INSERT INTO offers (order_id, block_number, transaction_hash, contract_hash, offer_time," +
+                    "INSERT INTO offers (block_number, transaction_hash, contract_hash, offer_time," +
                     "blockchain, address, available_amount, offer_hash, offer_asset_id, offer_amount, want_asset_id, want_amount)" +
-                    "VALUES (@orderId, @blockNumber, @transactionHash, @contractHash, @offerTime, @blockchain, @address, " + 
+                    "VALUES (@blockNumber, @transactionHash, @contractHash, @offerTime, @blockchain, @address, " + 
                     "@availableAmount, @offerHash, @offerAssetId, @offerAmount, @wantAssetId,  @wantAmount)", conn))
                     {
-                        cmd.Parameters.AddWithValue("orderId", orderId);
                         cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
                         cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
                         cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
                         cmd.Parameters.AddWithValue("offerTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
                         cmd.Parameters.AddWithValue("blockchain", "neo");
-                        cmd.Parameters.AddWithValue("address", address);
-                        cmd.Parameters.AddWithValue("availableAmount", availableAmount);
-                        cmd.Parameters.AddWithValue("offerHash", offerHash);
-                        cmd.Parameters.AddWithValue("offerAssetId", offerAssetId);
-                        cmd.Parameters.AddWithValue("offerAmount", offerAmount);
-                        cmd.Parameters.AddWithValue("wantAssetId", wantAssetId);
-                        cmd.Parameters.AddWithValue("wantAmount", wantAmount);
+                        cmd.Parameters.AddWithValue("address", NpgsqlDbType.Varchar, address);
+                        cmd.Parameters.AddWithValue("availableAmount", NpgsqlDbType.Numeric, availableAmount);
+                        cmd.Parameters.AddWithValue("offerHash", NpgsqlDbType.Varchar, offerHash);
+                        cmd.Parameters.AddWithValue("offerAssetId", NpgsqlDbType.Varchar, offerAssetId);
+                        cmd.Parameters.AddWithValue("offerAmount", NpgsqlDbType.Numeric, offerAmount);
+                        cmd.Parameters.AddWithValue("wantAssetId", NpgsqlDbType.Varchar, wantAssetId);
+                        cmd.Parameters.AddWithValue("wantAmount", NpgsqlDbType.Numeric, wantAmount);
                         
                         int nRows = cmd.ExecuteNonQuery();
-                        Console.Out.WriteLine(String.Format("Number of rows inserted={0}", nRows));
                     }
                 }
                 conn.Close();
