@@ -1,16 +1,16 @@
 ﻿{
-  "ApplicationConfiguration": {
-    "Paths": {
-      "Chain": "Chain"
-    },
-    "P2P": {
-      "Port": 10333,
-      "WsPort": 10334
-    },
-    "RPC": {
-      "Port": 10332,
-      "SslCert": "",
-      "SslCertPassword": ""
+    "ApplicationConfiguration": {
+        "Paths": {
+            "Chain": "Chains/Switcheo_Notif"
+        },
+        "P2P": {
+            "Port": 20333,
+            "WsPort": 20334
+        },
+        "RPC": {
+            "Port": 20331,
+            "SslCert": "",
+            "SslCertPassword": ""
+        }
     }
-  }
 }

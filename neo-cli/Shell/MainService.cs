@@ -20,9 +20,22 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Npgsql;
+using NpgsqlTypes;
+using System.Numerics;
 
 namespace Neo.Shell
 {
+    internal struct SmartContractEvent
+    {
+        public uint blockNumber;
+        public string transactionHash;
+        public string contractHash;
+        public uint eventTime;
+        public string eventType;
+        public JArray eventPayload;
+    }
+
     internal class MainService : ConsoleServiceBase
     {
         private const string PeerStatePath = "peers.dat";
@@ -849,7 +862,151 @@ namespace Neo.Shell
                 }
                 if (log)
                     LevelDBBlockchain.ApplicationExecuted += LevelDBBlockchain_ApplicationExecuted;
+                StateReader.Notify += OnStateReaderNotify;
             });
+        }
+
+        private void OnStateReaderNotify(object sender, NotifyEventArgs e)
+        {
+            // need to add different handlers below for Neo.VM.Types.Array|Neo.VM.Types.Integer
+            var stack = (VM.Types.Array)e.State;
+            string eventType = "";
+            JArray eventPayload = new JArray();
+            UInt160 scriptHash = e.ScriptHash;
+
+            for (int i = 0; i < stack.Count; i++)
+            {
+                string t = stack[i].GetType().ToString();
+                switch (t)
+                {
+                    case "Neo.VM.Types.ByteArray":
+                        {
+                            byte[] stackByteData = stack[i].GetByteArray();
+                            if (i == 0)
+                            {
+                                eventType = System.Text.Encoding.UTF8.GetString(stackByteData);
+                            }
+                            else
+                            {
+                                string dataHexString = stackByteData.ToHexString();
+                                switch (stackByteData.Length)
+                                {
+                                    case 20: // AddressScriptHash (raw binary?)
+                                    case 32: // PrevHash | Asset ID (raw bytes?)
+                                        {
+                                            eventPayload.Add(dataHexString);
+                                            break;
+                                        }
+                                    case 64: // Private Key (binary string?)
+                                    case 66: // Public Key (binary string?)
+                                    case 34: // Address (string string?)
+                                    case 52: // WIF (Wallet Import Format) (binary string?)
+                                        {
+                                            eventPayload.Add(dataHexString.Substring(0, Math.Min(16, dataHexString.Length)));
+                                            break;
+                                        }
+                                    default:
+                                        {
+                                            eventPayload.Add(stack[i].GetBigInteger().ToString());
+                                            break;
+                                        }
+                                }
+                            }
+                            break;
+                        }
+                    case "Neo.VM.Types.Integer":
+                        {
+                            eventPayload.Add((ulong)stack[i].GetBigInteger());
+                            break;
+                        }
+                    case "Neo.VM.Types.Boolean":
+                        {
+                            eventPayload.Add(stack[i].GetBoolean());
+                            break;
+                        }
+                }
+            }
+
+            Transaction txn = (Transaction)e.ScriptContainer;
+
+            var sc_event = new SmartContractEvent
+            {
+                blockNumber = Blockchain.Default.Height,
+                transactionHash = txn.Hash.ToString(),
+                contractHash = scriptHash.ToString(),
+                eventType = eventType,
+                eventPayload = eventPayload,
+                eventTime = Blockchain.Default.GetBlock(Blockchain.Default.Height).Timestamp
+            };
+            WriteToPsql(sc_event);
+        }
+
+        private static void WriteToPsql(SmartContractEvent contractEvent)
+        {
+            //string connString = "Server=localhost; User Id=postgres; Database=neonode; Port=5432; Password=postgres; SSL Mode=Prefer; Trust Server Certificate=true";
+            string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+            using (var conn = new NpgsqlConnection(connString))
+            {
+                conn.Open();
+                // Insert into events table
+                using (var cmd = new NpgsqlCommand(
+                    "INSERT INTO events (block_number, transaction_hash, contract_hash, event_type, event_payload, event_time, blockchain) " +
+                    "VALUES (@blockNumber, @transactionHash, @contractHash, @eventType, @eventPayload, @eventTime, @blockchain)", conn))
+                {
+                    cmd.Parameters.AddWithValue("blockchain", "neo");
+                    cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
+                    cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
+                    cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
+                    cmd.Parameters.AddWithValue("eventType", contractEvent.eventType);
+                    cmd.Parameters.AddWithValue("eventTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
+                    cmd.Parameters.AddWithValue("eventPayload", NpgsqlDbType.Jsonb, contractEvent.eventPayload.ToString());
+                    
+                    int nRows = cmd.ExecuteNonQuery();
+                }
+
+                if (contractEvent.eventType == "created")
+                {
+                    // Insert into offers table
+                    var address = contractEvent.eventPayload[0].ToString();
+                    var offerHash = contractEvent.eventPayload[1].ToString(); 
+                    var offerAssetId =contractEvent.eventPayload[2].ToString();
+                    var offerAmount = contractEvent.eventPayload[3].AsString(); 
+                    var wantAssetId = contractEvent.eventPayload[4].ToString();
+                    var wantAmount = contractEvent.eventPayload[5].AsString();
+                    var availableAmount = offerAmount;
+                    
+                    using (var cmd = new NpgsqlCommand(
+                    "INSERT INTO offers (block_number, transaction_hash, contract_hash, offer_time," +
+                    "blockchain, address, available_amount, offer_hash, offer_asset_id, offer_amount, want_asset_id, want_amount)" +
+                    "VALUES (@blockNumber, @transactionHash, @contractHash, @offerTime, @blockchain, @address, " + 
+                    "@availableAmount, @offerHash, @offerAssetId, @offerAmount, @wantAssetId,  @wantAmount)", conn))
+                    {
+                        cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
+                        cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
+                        cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
+                        cmd.Parameters.AddWithValue("offerTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
+                        cmd.Parameters.AddWithValue("blockchain", "neo");
+                        cmd.Parameters.AddWithValue("address", NpgsqlDbType.Varchar, address);
+                        cmd.Parameters.AddWithValue("availableAmount", NpgsqlDbType.Numeric, availableAmount);
+                        cmd.Parameters.AddWithValue("offerHash", NpgsqlDbType.Varchar, offerHash);
+                        cmd.Parameters.AddWithValue("offerAssetId", NpgsqlDbType.Varchar, offerAssetId);
+                        cmd.Parameters.AddWithValue("offerAmount", NpgsqlDbType.Numeric, offerAmount);
+                        cmd.Parameters.AddWithValue("wantAssetId", NpgsqlDbType.Varchar, wantAssetId);
+                        cmd.Parameters.AddWithValue("wantAmount", NpgsqlDbType.Numeric, wantAmount);
+                        
+                        int nRows = cmd.ExecuteNonQuery();
+                    }
+                }
+                conn.Close();
+            }
+        }
+
+        private static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
+        {
+            // Unix timestamp is seconds past epoch
+            DateTime dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            dtDateTime = dtDateTime.AddSeconds(unixTimeStamp);
+            return dtDateTime;
         }
 
         private bool OnStartCommand(string[] args)

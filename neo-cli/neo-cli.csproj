@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <PackageReference Include="Neo" Version="2.7.3" />
+    <PackageReference Include="Npgsql" Version="3.2.7" />
   </ItemGroup>
 
 </Project>

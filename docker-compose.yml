@@ -1,0 +1,8 @@
+version: '3'
+
+services:
+  neo-cli:
+    image: neo-cli
+    build:
+      context: .
+      dockerfile: neo-cli/Dockerfile

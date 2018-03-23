@@ -1,9 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.15
+VisualStudioVersion = 15.0.27130.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "neo-cli", "neo-cli\neo-cli.csproj", "{900CA179-AEF0-43F3-9833-5DB060272D8E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{122BA45B-9FF1-4DAA-8EEF-386BB80C51D5}"
+EndProject
+Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{37F09A8B-3CEB-4F59-B628-8791101A57CE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,8 +19,15 @@ Global
 		{900CA179-AEF0-43F3-9833-5DB060272D8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{900CA179-AEF0-43F3-9833-5DB060272D8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{900CA179-AEF0-43F3-9833-5DB060272D8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{37F09A8B-3CEB-4F59-B628-8791101A57CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{37F09A8B-3CEB-4F59-B628-8791101A57CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{37F09A8B-3CEB-4F59-B628-8791101A57CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{37F09A8B-3CEB-4F59-B628-8791101A57CE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {09A3C075-419F-44C0-B59A-4E2D58A912DC}
 	EndGlobalSection
 EndGlobal
