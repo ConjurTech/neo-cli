@@ -1,7 +1,10 @@
 FROM microsoft/aspnetcore-build:2.0 AS build-env
 WORKDIR /app
 
-RUN apt-get install -y libleveldb-dev sqlite3 libsqlite3-dev libunwind8-dev
+RUN apt-get install -y libleveldb-dev
+RUN apt-get install -y sqlite3
+RUN apt-get install -y libsqlite3-dev
+RUN apt-get install -y libunwind8-dev
 
 # Copy csproj and restore as distinct layers
 COPY *.csproj ./
