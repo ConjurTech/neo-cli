@@ -976,15 +976,15 @@ namespace Neo.Shell
                     var availableAmount = offerAmount;
                     
                     using (var cmd = new NpgsqlCommand(
-                    "INSERT INTO offers (block_number, transaction_hash, contract_hash, offer_time," +
+                    "INSERT INTO offers (block_number, transaction_hash, contract_hash, event_time," +
                     "blockchain, address, available_amount, offer_hash, offer_asset_id, offer_amount, want_asset_id, want_amount)" +
-                    "VALUES (@blockNumber, @transactionHash, @contractHash, @offerTime, @blockchain, @address, " + 
+                    "VALUES (@blockNumber, @transactionHash, @contractHash, @eventTime, @blockchain, @address, " + 
                     "@availableAmount, @offerHash, @offerAssetId, @offerAmount, @wantAssetId,  @wantAmount)", conn))
                     {
                         cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
                         cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
                         cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
-                        cmd.Parameters.AddWithValue("offerTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
+                        cmd.Parameters.AddWithValue("eventTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
                         cmd.Parameters.AddWithValue("blockchain", "neo");
                         cmd.Parameters.AddWithValue("address", NpgsqlDbType.Varchar, address);
                         cmd.Parameters.AddWithValue("availableAmount", NpgsqlDbType.Numeric, availableAmount);
@@ -997,7 +997,42 @@ namespace Neo.Shell
                         int nRows = cmd.ExecuteNonQuery();
                     }
                 }
-                conn.Close();
+
+                if (contractEvent.eventType == "filled")
+                {
+                    // Insert into trades table
+                    var address = contractEvent.eventPayload[0].ToString();
+                    var offerHash = contractEvent.eventPayload[1].ToString();
+                    var filledAmount = contractEvent.eventPayload[2].AsString();
+                    var offerAssetId = contractEvent.eventPayload[3].ToString();
+                    var offerAmount = contractEvent.eventPayload[4].AsString();
+                    var wantAssetId = contractEvent.eventPayload[5].ToString();
+                    var wantAmount = contractEvent.eventPayload[6].AsString();
+
+                    using (var cmd = new NpgsqlCommand(
+                    "INSERT INTO trades (block_number, transaction_hash, contract_hash, event_type, address, offer_hash, filled_amount, " +
+                    "offer_asset_id, offer_amount, want_asset_id, want_amount, event_time, blockchain)" +
+                    "VALUES (@blockNumber, @transactionHash, @contractHash, @eventType, @address, @offerHash, @filledAmount, " +
+                    "@offerAssetId, @offerAmount, @wantAssetId, @wantAmount, @eventTime, @blockchain)", conn))
+                    {
+                        cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
+                        cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
+                        cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
+                        cmd.Parameters.AddWithValue("eventType", contractEvent.eventType);
+                        cmd.Parameters.AddWithValue("address", NpgsqlDbType.Varchar, address);
+                        cmd.Parameters.AddWithValue("offerHash", NpgsqlDbType.Varchar, offerHash);
+                        cmd.Parameters.AddWithValue("filledAmount", NpgsqlDbType.Numeric, filledAmount);
+                        cmd.Parameters.AddWithValue("offerAssetId", NpgsqlDbType.Varchar, offerAssetId);
+                        cmd.Parameters.AddWithValue("offerAmount", NpgsqlDbType.Numeric, offerAmount);
+                        cmd.Parameters.AddWithValue("wantAssetId", NpgsqlDbType.Varchar, wantAssetId);
+                        cmd.Parameters.AddWithValue("wantAmount", NpgsqlDbType.Numeric, wantAmount);
+                        cmd.Parameters.AddWithValue("eventTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
+                        cmd.Parameters.AddWithValue("blockchain", "neo");
+                        
+                        int nRows = cmd.ExecuteNonQuery();
+                    }
+                }
+                    conn.Close();
             }
         }
 
