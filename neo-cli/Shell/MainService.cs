@@ -935,14 +935,14 @@ namespace Neo.Shell
                 {
                     blockNumber = Blockchain.Default.Height,
                     transactionHash = txn.Hash.ToString(),
-                    contractHash = scriptHash.ToString(),
+                    contractHash = scriptHash.ToString().Substring(2),
                     eventType = eventType,
                     eventPayload = eventPayload,
                     eventTime = Blockchain.Default.GetBlock(Blockchain.Default.Height).Timestamp
                 };
                 string[] contractHashList = Environment.GetEnvironmentVariable("CONTRACT_HASH_LIST").Split(null);
 
-                if (contractHashList.Contains(scriptHash.ToString()))
+                if (contractHashList.Contains(scriptHash.ToString().Substring(2)))
                 {
                     WriteToPsql(sc_event);
                 }    
