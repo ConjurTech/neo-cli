@@ -941,7 +941,8 @@ namespace Neo.Shell
                     eventTime = Blockchain.Default.GetBlock(Blockchain.Default.Height).Timestamp
                 };
                 string[] contractHashList = Environment.GetEnvironmentVariable("CONTRACT_HASH_LIST").Split(null);
-
+                Console.WriteLine(Environment.GetEnvironmentVariable("CONTRACT_HASH_LIST"));
+                Console.WriteLine(scriptHash.ToString().Substring(2));
                 if (contractHashList.Contains(scriptHash.ToString().Substring(2)))
                 {
                     WriteToPsql(sc_event);
