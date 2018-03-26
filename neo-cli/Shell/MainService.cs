@@ -817,6 +817,7 @@ namespace Neo.Shell
                     LocalNode.LoadState(fs);
                 }
             LocalNode = new LocalNode();
+            StateReader.Notify += OnStateReaderNotify;
             Task.Run(() =>
             {
                 const string acc_path = "chain.acc";
@@ -862,83 +863,110 @@ namespace Neo.Shell
                 }
                 if (log)
                     LevelDBBlockchain.ApplicationExecuted += LevelDBBlockchain_ApplicationExecuted;
-                StateReader.Notify += OnStateReaderNotify;
             });
         }
 
         private void OnStateReaderNotify(object sender, NotifyEventArgs e)
         {
             // need to add different handlers below for Neo.VM.Types.Array|Neo.VM.Types.Integer
-            var stack = (VM.Types.Array)e.State;
-            string eventType = "";
-            JArray eventPayload = new JArray();
-            UInt160 scriptHash = e.ScriptHash;
-
-            for (int i = 0; i < stack.Count; i++)
+            try
             {
-                string t = stack[i].GetType().ToString();
-                switch (t)
+                var stack = (VM.Types.Array)e.State;
+                string eventType = "";
+                JArray eventPayload = new JArray();
+                UInt160 scriptHash = e.ScriptHash;
+
+                for (int i = 0; i < stack.Count; i++)
                 {
-                    case "Neo.VM.Types.ByteArray":
-                        {
-                            byte[] stackByteData = stack[i].GetByteArray();
-                            if (i == 0)
+                    string t = stack[i].GetType().ToString();
+                    switch (t)
+                    {
+                        case "Neo.VM.Types.ByteArray":
                             {
-                                eventType = System.Text.Encoding.UTF8.GetString(stackByteData);
-                            }
-                            else
-                            {
-                                string dataHexString = stackByteData.ToHexString();
-                                switch (stackByteData.Length)
+                                byte[] stackByteData = stack[i].GetByteArray();
+                                if (i == 0)
                                 {
-                                    case 20: // AddressScriptHash (raw binary?)
-                                    case 32: // PrevHash | Asset ID (raw bytes?)
-                                        {
-                                            eventPayload.Add(dataHexString);
-                                            break;
-                                        }
-                                    case 64: // Private Key (binary string?)
-                                    case 66: // Public Key (binary string?)
-                                    case 34: // Address (string string?)
-                                    case 52: // WIF (Wallet Import Format) (binary string?)
-                                        {
-                                            eventPayload.Add(dataHexString.Substring(0, Math.Min(16, dataHexString.Length)));
-                                            break;
-                                        }
-                                    default:
-                                        {
-                                            eventPayload.Add(stack[i].GetBigInteger().ToString());
-                                            break;
-                                        }
+                                    eventType = System.Text.Encoding.UTF8.GetString(stackByteData);
                                 }
+                                else
+                                {
+                                    string dataHexString = stackByteData.ToHexString();
+                                    switch (stackByteData.Length)
+                                    {
+                                        case 20: // AddressScriptHash (raw binary?)
+                                        case 32: // PrevHash | Asset ID (raw bytes?)
+                                            {
+                                                eventPayload.Add(dataHexString);
+                                                break;
+                                            }
+                                        case 64: // Private Key (binary string?)
+                                        case 66: // Public Key (binary string?)
+                                        case 34: // Address (string string?)
+                                        case 52: // WIF (Wallet Import Format) (binary string?)
+                                            {
+                                                eventPayload.Add(dataHexString.Substring(0, Math.Min(16, dataHexString.Length)));
+                                                break;
+                                            }
+                                        default:
+                                            {
+                                                eventPayload.Add(stack[i].GetBigInteger().ToString());
+                                                break;
+                                            }
+                                    }
+                                }
+                                break;
                             }
-                            break;
-                        }
-                    case "Neo.VM.Types.Integer":
-                        {
-                            eventPayload.Add((ulong)stack[i].GetBigInteger());
-                            break;
-                        }
-                    case "Neo.VM.Types.Boolean":
-                        {
-                            eventPayload.Add(stack[i].GetBoolean());
-                            break;
-                        }
+                        case "Neo.VM.Types.Integer":
+                            {
+                                eventPayload.Add((ulong)stack[i].GetBigInteger());
+                                break;
+                            }
+                        case "Neo.VM.Types.Boolean":
+                            {
+                                eventPayload.Add(stack[i].GetBoolean());
+                                break;
+                            }
+                    }
+                }
+
+                Transaction txn = (Transaction)e.ScriptContainer;
+
+                var sc_event = new SmartContractEvent
+                {
+                    blockNumber = Blockchain.Default.Height,
+                    transactionHash = txn.Hash.ToString(),
+                    contractHash = scriptHash.ToString(),
+                    eventType = eventType,
+                    eventPayload = eventPayload,
+                    eventTime = Blockchain.Default.GetBlock(Blockchain.Default.Height).Timestamp
+                };
+                WriteToPsql(sc_event);
+            }
+            catch (Exception ex)
+            {
+                PrintErrorLogs(ex);
+                LocalNode.Dispose();
+            }
+        }
+
+        private void PrintErrorLogs(Exception ex)
+        {
+            Console.WriteLine(ex.GetType());
+            Console.WriteLine(ex.Message);
+            Console.WriteLine(ex.StackTrace);
+            if (ex is AggregateException ex2)
+            {
+                foreach (Exception inner in ex2.InnerExceptions)
+                {
+                    Console.WriteLine();
+                    PrintErrorLogs(inner);
                 }
             }
-
-            Transaction txn = (Transaction)e.ScriptContainer;
-
-            var sc_event = new SmartContractEvent
+            else if (ex.InnerException != null)
             {
-                blockNumber = Blockchain.Default.Height,
-                transactionHash = txn.Hash.ToString(),
-                contractHash = scriptHash.ToString(),
-                eventType = eventType,
-                eventPayload = eventPayload,
-                eventTime = Blockchain.Default.GetBlock(Blockchain.Default.Height).Timestamp
-            };
-            WriteToPsql(sc_event);
+                Console.WriteLine();
+                PrintErrorLogs(ex.InnerException);
+            }
         }
 
         private static void WriteToPsql(SmartContractEvent contractEvent)
