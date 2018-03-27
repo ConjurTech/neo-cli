@@ -1026,7 +1026,7 @@ namespace Neo.Shell
                         cmd.Parameters.AddWithValue("availableAmount", NpgsqlDbType.Numeric, availableAmount);
                         cmd.Parameters.AddWithValue("offerHash", NpgsqlDbType.Varchar, offerHash);
                         cmd.Parameters.AddWithValue("offerAssetId", NpgsqlDbType.Varchar, offerAssetId);
-                        cmd.Parameters.AddWithValue("offerAmount", NpgsqlDbType., offerAmount);
+                        cmd.Parameters.AddWithValue("offerAmount", NpgsqlDbType.Numeric, offerAmount);
                         cmd.Parameters.AddWithValue("wantAssetId", NpgsqlDbType.Varchar, wantAssetId);
                         cmd.Parameters.AddWithValue("wantAmount", NpgsqlDbType.Numeric, wantAmount);
                         
