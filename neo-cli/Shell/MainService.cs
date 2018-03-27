@@ -982,8 +982,10 @@ namespace Neo.Shell
                 conn.Open();
                 // Insert into events table
                 using (var cmd = new NpgsqlCommand(
-                    "INSERT INTO events (block_number, transaction_hash, contract_hash, event_type, event_payload, event_time, blockchain) " +
-                    "VALUES (@blockNumber, @transactionHash, @contractHash, @eventType, @eventPayload, @eventTime, @blockchain)", conn))
+                    "INSERT INTO events (block_number, transaction_hash, contract_hash, event_type, event_payload, event_time, blockchain, " +
+                    "created_at, updated_at) " +
+                    "VALUES (@blockNumber, @transactionHash, @contractHash, @eventType, @eventPayload, @eventTime, @blockchain, " +
+                    "current_timestamp, updated_timestamp)", conn))
                 {
                     cmd.Parameters.AddWithValue("blockchain", "neo");
                     cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
@@ -1008,10 +1010,12 @@ namespace Neo.Shell
                     var availableAmount = offerAmount;
                     
                     using (var cmd = new NpgsqlCommand(
-                    "INSERT INTO offers (block_number, transaction_hash, contract_hash, event_time," +
-                    "blockchain, address, available_amount, offer_hash, offer_asset_id, offer_amount, want_asset_id, want_amount)" +
+                    "INSERT INTO offers (block_number, transaction_hash, contract_hash, event_time, " +
+                    "blockchain, address, available_amount, offer_hash, offer_asset_id, offer_amount, want_asset_id, want_amount, " +
+                        "created_at, updated_at)" +
                     "VALUES (@blockNumber, @transactionHash, @contractHash, @eventTime, @blockchain, @address, " + 
-                    "@availableAmount, @offerHash, @offerAssetId, @offerAmount, @wantAssetId,  @wantAmount)", conn))
+                    "@availableAmount, @offerHash, @offerAssetId, @offerAmount, @wantAssetId,  @wantAmount, " +
+                        "current_timestamp, current_timestamp)", conn))
                     {
                         cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
                         cmd.Parameters.AddWithValue("transactionHash", contractEvent.transactionHash);
