@@ -934,14 +934,23 @@ namespace Neo.Shell
                 var sc_event = new SmartContractEvent
                 {
                     blockNumber = Blockchain.Default.Height,
+<<<<<<< HEAD
                     transactionHash = txn.Hash.ToString().Substring(2),
+=======
+                    transactionHash = txn.Hash.ToString(),
+>>>>>>> 725f62b2682174d4c2a14bf646cbd16f48648565
                     contractHash = scriptHash.ToString().Substring(2),
                     eventType = eventType,
                     eventPayload = eventPayload,
                     eventTime = Blockchain.Default.GetBlock(Blockchain.Default.Height).Timestamp
                 };
                 string[] contractHashList = Environment.GetEnvironmentVariable("CONTRACT_HASH_LIST").Split(null);
+<<<<<<< HEAD
 
+=======
+                Console.WriteLine(Environment.GetEnvironmentVariable("CONTRACT_HASH_LIST"));
+                Console.WriteLine(scriptHash.ToString().Substring(2));
+>>>>>>> 725f62b2682174d4c2a14bf646cbd16f48648565
                 if (contractHashList.Contains(scriptHash.ToString().Substring(2)))
                 {
                     WriteToPsql(sc_event);
