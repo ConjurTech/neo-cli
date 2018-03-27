@@ -985,7 +985,7 @@ namespace Neo.Shell
                     "INSERT INTO events (block_number, transaction_hash, contract_hash, event_type, event_payload, event_time, blockchain, " +
                     "created_at, updated_at) " +
                     "VALUES (@blockNumber, @transactionHash, @contractHash, @eventType, @eventPayload, @eventTime, @blockchain, " +
-                    "current_timestamp, updated_timestamp)", conn))
+                    "current_timestamp, current_timestamp)", conn))
                 {
                     cmd.Parameters.AddWithValue("blockchain", "neo");
                     cmd.Parameters.AddWithValue("blockNumber", NpgsqlDbType.Integer, contractEvent.blockNumber);
