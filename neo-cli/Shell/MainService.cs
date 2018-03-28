@@ -975,6 +975,7 @@ namespace Neo.Shell
 
         private static void WriteToPsql(SmartContractEvent contractEvent)
         {
+            Console.WriteLine(contractEvent.eventPayload.ToString());
             //string connString = "Server=localhost; User Id=postgres; Database=neonode; Port=5432; Password=postgres; SSL Mode=Prefer; Trust Server Certificate=true";
             string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
             using (var conn = new NpgsqlConnection(connString))
