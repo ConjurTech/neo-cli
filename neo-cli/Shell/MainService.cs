@@ -890,7 +890,7 @@ namespace Neo.Shell
                                 }
                                 else
                                 {
-                                    string dataHexString = stackByteData.ToHexString();
+                                    string dataHexString = stackByteData.Reverse().ToHexString();
                                     switch (stackByteData.Length)
                                     {
                                         case 20: // AddressScriptHash (raw binary?)
@@ -1001,11 +1001,11 @@ namespace Neo.Shell
                 if (contractEvent.eventType == "created")
                 {
                     // Insert into offers table
-                    var address = contractEvent.eventPayload[0].ToString();
-                    var offerHash = contractEvent.eventPayload[1].ToString(); 
-                    var offerAssetId =contractEvent.eventPayload[2].ToString();
+                    var address = contractEvent.eventPayload[0].AsString();
+                    var offerHash = contractEvent.eventPayload[1].AsString(); 
+                    var offerAssetId = contractEvent.eventPayload[2].AsString();
                     var offerAmount = contractEvent.eventPayload[3].AsString(); 
-                    var wantAssetId = contractEvent.eventPayload[4].ToString();
+                    var wantAssetId = contractEvent.eventPayload[4].AsString();
                     var wantAmount = contractEvent.eventPayload[5].AsString();
                     var availableAmount = offerAmount;
                     
@@ -1037,12 +1037,12 @@ namespace Neo.Shell
                 if (contractEvent.eventType == "filled")
                 {
                     // Insert into trades table
-                    var address = contractEvent.eventPayload[0].ToString();
-                    var offerHash = contractEvent.eventPayload[1].ToString();
+                    var address = contractEvent.eventPayload[0].AsString();
+                    var offerHash = contractEvent.eventPayload[1].AsString();
                     var filledAmount = contractEvent.eventPayload[2].AsString();
                     var offerAssetId = contractEvent.eventPayload[3].ToString();
                     var offerAmount = contractEvent.eventPayload[4].AsString();
-                    var wantAssetId = contractEvent.eventPayload[5].ToString();
+                    var wantAssetId = contractEvent.eventPayload[5].AsString();
                     var wantAmount = contractEvent.eventPayload[6].AsString();
 
                     using (var cmd = new NpgsqlCommand(
