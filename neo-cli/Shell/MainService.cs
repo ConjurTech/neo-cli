@@ -1043,7 +1043,7 @@ namespace Neo.Shell
                         var address = contractEvent.eventPayload[0].AsString();
                         var offerHash = contractEvent.eventPayload[1].AsString();
                         var filledAmount = contractEvent.eventPayload[2].AsString();
-                        var offerAssetId = contractEvent.eventPayload[3].ToString();
+                        var offerAssetId = contractEvent.eventPayload[3].AsString();
                         var offerAmount = contractEvent.eventPayload[4].AsString();
                         var wantAssetId = contractEvent.eventPayload[5].AsString();
                         var wantAmount = contractEvent.eventPayload[6].AsString();
