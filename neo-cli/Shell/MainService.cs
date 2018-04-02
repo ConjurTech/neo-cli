@@ -997,6 +997,9 @@ namespace Neo.Shell
                     cmd.Parameters.AddWithValue("eventPayload", NpgsqlDbType.Jsonb, contractEvent.eventPayload.ToString());
 
                     int nRows = cmd.ExecuteNonQuery();
+
+                    Console.WriteLine(String.Format("Number of rows inserted={0}", nRows));
+                    Console.WriteLine(String.Format("Created event {0} {1}", contractEvent.eventType, contractEvent.eventPayload));
                 }
 
                 if (contractEvent.eventType == "created")
