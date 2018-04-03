@@ -58,7 +58,7 @@ namespace Neo.Shell
                     byte[] array = r.ReadBytes(r.ReadInt32());
                     if (height > blockchain.Height)
                     {
-                        Console.WriteLine(height);
+                        Console.WriteLine("Block imported {0}", height.ToString());
                         Block block = array.AsSerializable<Block>();
                         blockchain.AddBlockDirectly(block);
                     }
@@ -976,6 +976,9 @@ namespace Neo.Shell
 
         private static void WriteToPsql(SmartContractEvent contractEvent)
         {
+            Console.WriteLine(String.Format("Blockheight={0}", contractEvent.blockNumber));
+            Console.WriteLine(String.Format("Event {0} {1}", contractEvent.eventType, contractEvent.eventPayload));
+
             //string connString = "Server=localhost; User Id=postgres; Database=neonode; Port=5432; Password=postgres; SSL Mode=Prefer; Trust Server Certificate=true";
             string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
             try
@@ -1001,8 +1004,6 @@ namespace Neo.Shell
                         int nRows = cmd.ExecuteNonQuery();
 
                         Console.WriteLine(String.Format("Rows inserted={0}", nRows));
-                        Console.WriteLine(String.Format("Blockheight={0}", contractEvent.blockNumber));
-                        Console.WriteLine(String.Format("Event {0} {1}", contractEvent.eventType, contractEvent.eventPayload));
                     }
 
                     if (contractEvent.eventType == "created")
