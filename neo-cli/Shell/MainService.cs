@@ -1080,7 +1080,8 @@ namespace Neo.Shell
             {
                 if (ex.SqlState == "23505")
                 {
-                    // this is a unique key violation, which is fine, so do nothing.   
+                    // this is a unique key violation, which is fine, so do nothing.
+                    Console.WriteLine("Already inserted, ignoring");
                 }
                 else
                 {
