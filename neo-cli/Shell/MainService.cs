@@ -58,6 +58,7 @@ namespace Neo.Shell
                     byte[] array = r.ReadBytes(r.ReadInt32());
                     if (height > blockchain.Height)
                     {
+                        Console.WriteLine(height);
                         Block block = array.AsSerializable<Block>();
                         blockchain.AddBlockDirectly(block);
                     }
