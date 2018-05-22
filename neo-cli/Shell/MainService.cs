@@ -1012,11 +1012,6 @@ namespace Neo.Shell
                             var p = stack.ToParameter();
                             switch (p.Type)
                             {
-                                case ContractParameterType.Boolean:
-                                    {
-                                        eventPayload.Add((bool)p.Value);
-                                        break;
-                                    }
                                 case ContractParameterType.ByteArray:
                                 case ContractParameterType.Hash160:
                                 case ContractParameterType.Hash256:
@@ -1037,7 +1032,12 @@ namespace Neo.Shell
                                     }
                                 case ContractParameterType.String:
                                     {
-                                        eventPayload.Add(p.ToString());
+                                        eventPayload.Add(p.Value.ToString());
+                                        break;
+                                    }
+                                case ContractParameterType.Boolean:
+                                    {
+                                        eventPayload.Add((bool)p.Value);
                                         break;
                                     }
                                 default:
