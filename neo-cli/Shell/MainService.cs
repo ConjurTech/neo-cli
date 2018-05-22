@@ -23,6 +23,8 @@ using System.Threading.Tasks;
 using Npgsql;
 using NpgsqlTypes;
 using System.Numerics;
+using SharpRaven;
+using SharpRaven.Data;
 
 namespace Neo.Shell
 {
@@ -1025,6 +1027,9 @@ namespace Neo.Shell
                 }
                 catch (Exception ex)
                 {
+                    string connString = Environment.GetEnvironmentVariable("SENTRY_URL");
+                    var ravenClient = new RavenClient(connString);
+                    ravenClient.Capture(new SentryEvent(ex));
                     PrintErrorLogs(ex);
                     LocalNode.Dispose();
                     throw ex;
