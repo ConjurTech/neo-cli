@@ -1001,25 +1001,34 @@ namespace Neo.Shell
 
                     for (int i = 0; i < stack.Count; i++)
                     {
-                        string t = stack[i].GetType().ToString();
+                        var bytes = stack[i].GetByteArray();
                         if (i == 0)
                         {
-                            var bytes = stack[i].GetByteArray();
                             eventType = System.Text.Encoding.UTF8.GetString(bytes);
                         }
                         else
                         {
-                            var p = stack.ToParameter();
-                            switch (p.Type)
+                            string type = stack[i].GetType().ToString();
+                            switch (type)
                             {
-                                case ContractParameterType.ByteArray:
-                                case ContractParameterType.Hash160:
-                                case ContractParameterType.Hash256:
-                                case ContractParameterType.PublicKey:
-                                case ContractParameterType.Signature:
+                                case "Neo.VM.Types.Boolean":
                                     {
-                                        var bytes = stack[i].GetByteArray();
-                                        if (p.Type != ContractParameterType.ByteArray || bytes.Length == 20 || bytes.Length == 32)
+                                        eventPayload.Add(stack[i].GetBoolean());
+                                        break;
+                                    }
+                                case "Neo.VM.Types.String":
+                                    {
+                                        eventPayload.Add(stack[i].GetString());
+                                        break;
+                                    }
+                                case "Neo.VM.Types.Integer":
+                                    {
+                                        eventPayload.Add(stack[i].GetBigInteger().ToString());
+                                        break;
+                                    }
+                                case "Neo.VM.Types.ByteArray":
+                                    {
+                                        if (bytes.Length == 20 || bytes.Length == 32)
                                         {
                                             string hexString = bytes.Reverse().ToHexString();
                                             eventPayload.Add(hexString);
@@ -1030,19 +1039,10 @@ namespace Neo.Shell
                                         }
                                         break;
                                     }
-                                case ContractParameterType.String:
-                                    {
-                                        eventPayload.Add(p.Value.ToString());
-                                        break;
-                                    }
-                                case ContractParameterType.Boolean:
-                                    {
-                                        eventPayload.Add((bool)p.Value);
-                                        break;
-                                    }
                                 default:
                                     {
-                                        eventPayload.Add(stack[i].GetBigInteger().ToString());
+                                        string hexString = bytes.Reverse().ToHexString();
+                                        eventPayload.Add(hexString);
                                         break;
                                     }
 
