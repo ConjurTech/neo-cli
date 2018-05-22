@@ -1004,12 +1004,49 @@ namespace Neo.Shell
                         string t = stack[i].GetType().ToString();
                         if (i == 0)
                         {
-                            byte[] stackByteData = stack[i].GetByteArray();
-                            eventType = System.Text.Encoding.UTF8.GetString(stackByteData);
+                            var bytes = stack[i].GetByteArray();
+                            eventType = System.Text.Encoding.UTF8.GetString(bytes);
                         }
                         else
                         {
-                            eventPayload.Add(stack.ToParameter().ToJson());
+                            var p = stack.ToParameter();
+                            switch (p.Type)
+                            {
+                                case ContractParameterType.Boolean:
+                                    {
+                                        eventPayload.Add((bool)p.Value);
+                                        break;
+                                    }
+                                case ContractParameterType.ByteArray:
+                                case ContractParameterType.Hash160:
+                                case ContractParameterType.Hash256:
+                                case ContractParameterType.PublicKey:
+                                case ContractParameterType.Signature:
+                                    {
+                                        var bytes = stack[i].GetByteArray();
+                                        if (p.Type != ContractParameterType.ByteArray || bytes.Length == 20 || bytes.Length == 32)
+                                        {
+                                            string hexString = bytes.Reverse().ToHexString();
+                                            eventPayload.Add(hexString);
+                                        }
+                                        else
+                                        {
+                                            eventPayload.Add(stack[i].GetBigInteger().ToString());
+                                        }
+                                        break;
+                                    }
+                                case ContractParameterType.String:
+                                    {
+                                        eventPayload.Add(p.ToString());
+                                        break;
+                                    }
+                                default:
+                                    {
+                                        eventPayload.Add(stack[i].GetBigInteger().ToString());
+                                        break;
+                                    }
+
+                            }
                         }
                     }
 
