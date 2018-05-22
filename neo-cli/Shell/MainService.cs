@@ -835,9 +835,11 @@ namespace Neo.Shell
                     LocalNode.LoadState(fs);
                 }
             LocalNode = new LocalNode();
-            StateReader.Notify += OnStateReaderNotify;
+
             if (useLog)
-                LevelDBBlockchain.ApplicationExecuted += LevelDBBlockchain_ApplicationExecuted;
+                LevelDBBlockchain.ApplicationExecuted += LogOnApplicationExecuted;
+            LevelDBBlockchain.ApplicationExecuted += PersistEventsOnApplicationExecuted;
+
             Task.Run(() =>
             {
                 const string acc_path = "chain.acc";
@@ -868,111 +870,165 @@ namespace Neo.Shell
                 }
             });
         }
-
-        private void OnStateReaderNotify(object sender, NotifyEventArgs e)
+        
+        private bool OnStartCommand(string[] args)
         {
-            // need to add different handlers below for Neo.VM.Types.Array|Neo.VM.Types.Integer
-            try
+            switch (args[1].ToLower())
             {
-                var stack = (VM.Types.Array)e.State;
-                string eventType = "";
-                JArray eventPayload = new JArray();
-                UInt160 scriptHash = e.ScriptHash;
-
-                for (int i = 0; i < stack.Count; i++)
-                {
-                    string t = stack[i].GetType().ToString();
-                    switch (t)
-                    {
-                        case "Neo.VM.Types.ByteArray":
-                            {
-                                byte[] stackByteData = stack[i].GetByteArray();
-                                if (i == 0)
-                                {
-                                    eventType = System.Text.Encoding.UTF8.GetString(stackByteData);
-                                }
-                                else
-                                {
-                                    string dataHexString = stackByteData.Reverse().ToHexString();
-                                    switch (stackByteData.Length)
-                                    {
-                                        case 20: // AddressScriptHash (raw binary?)
-                                        case 32: // PrevHash | Asset ID (raw bytes?)
-                                            {
-                                                eventPayload.Add(dataHexString);
-                                                break;
-                                            }
-                                        case 64: // Private Key (binary string?)
-                                        case 66: // Public Key (binary string?)
-                                        case 34: // Address (string string?)
-                                        case 52: // WIF (Wallet Import Format) (binary string?)
-                                            {
-                                                eventPayload.Add(dataHexString.Substring(0, Math.Min(16, dataHexString.Length)));
-                                                break;
-                                            }
-                                        default:
-                                            {
-                                                eventPayload.Add(stack[i].GetBigInteger().ToString());
-                                                break;
-                                            }
-                                    }
-                                }
-                                break;
-                            }
-                        case "Neo.VM.Types.Integer":
-                            {
-                                eventPayload.Add((ulong)stack[i].GetBigInteger());
-                                break;
-                            }
-                        case "Neo.VM.Types.Boolean":
-                            {
-                                eventPayload.Add(stack[i].GetBoolean());
-                                break;
-                            }
-                    }
-                }
-
-                Transaction txn = (Transaction)e.ScriptContainer;
-
-                var sc_event = new SmartContractEvent
-                {
-                    blockNumber = Blockchain.Default.Height,
-                    transactionHash = txn.Hash.ToString().Substring(2),
-                    contractHash = scriptHash.ToString().Substring(2),
-                    eventType = eventType,
-                    eventPayload = eventPayload,
-                    eventTime = Blockchain.Default.GetBlock(Blockchain.Default.Height).Timestamp
-                };
-                string[] contractHashList = Environment.GetEnvironmentVariable("CONTRACT_HASH_LIST").Split(null);
-                if (contractHashList.Contains(scriptHash.ToString().Substring(2)))
-                {
-                    WriteToPsql(sc_event);
-                }
-            }
-            catch (Exception ex)
-            {
-                PrintErrorLogs(ex);
-                LocalNode.Dispose();
+                case "consensus":
+                    return OnStartConsensusCommand(args);
+                default:
+                    return base.OnCommand(args);
             }
         }
 
-        private void PrintErrorLogs(Exception ex)
+        private bool OnStartConsensusCommand(string[] args)
         {
-            Console.WriteLine(ex.GetType());
-            Console.WriteLine(ex.Message);
-            Console.WriteLine(ex.StackTrace);
-            if (ex is AggregateException ex2)
+            if (consensus != null) return true;
+            if (Program.Wallet == null)
             {
-                foreach (Exception inner in ex2.InnerExceptions)
-                {
-                    Console.WriteLine();
-                    PrintErrorLogs(inner);
-                }
+                Console.WriteLine("You have to open the wallet first.");
+                return true;
             }
-            else if (ex.InnerException != null)
+            string log_dictionary = Path.Combine(AppContext.BaseDirectory, "Logs");
+            consensus = new ConsensusWithPolicy(LocalNode, Program.Wallet, log_dictionary);
+            ShowPrompt = false;
+            consensus.Start();
+            return true;
+        }
+
+        protected internal override void OnStop()
+        {
+            if (consensus != null) consensus.Dispose();
+            if (rpc != null) rpc.Dispose();
+            LocalNode.Dispose();
+            using (FileStream fs = new FileStream(PeerStatePath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                Console.WriteLine();
-                PrintErrorLogs(ex.InnerException);
+                LocalNode.SaveState(fs);
+            }
+            Blockchain.Default.Dispose();
+        }
+
+        private bool OnUpgradeCommand(string[] args)
+        {
+            switch (args[1].ToLower())
+            {
+                case "wallet":
+                    return OnUpgradeWalletCommand(args);
+                default:
+                    return base.OnCommand(args);
+            }
+        }
+
+        private bool OnUpgradeWalletCommand(string[] args)
+        {
+            if (args.Length < 3)
+            {
+                Console.WriteLine("error");
+                return true;
+            }
+            string path = args[2];
+            if (Path.GetExtension(path) != ".db3")
+            {
+                Console.WriteLine("Can't upgrade the wallet file.");
+                return true;
+            }
+            if (!File.Exists(path))
+            {
+                Console.WriteLine("File does not exist.");
+                return true;
+            }
+            string password = ReadPassword("password");
+            if (password.Length == 0)
+            {
+                Console.WriteLine("cancelled");
+                return true;
+            }
+            string path_new = Path.ChangeExtension(path, ".json");
+            NEP6Wallet.Migrate(path_new, path, password).Save();
+            Console.WriteLine($"Wallet file upgrade complete. New wallet file has been auto-saved at: {path_new}");
+            return true;
+        }
+
+        private void LogOnApplicationExecuted(object sender, ApplicationExecutedEventArgs e)
+        {
+            JObject json = new JObject();
+            json["txid"] = e.Transaction.Hash.ToString();
+            json["vmstate"] = e.VMState;
+            json["gas_consumed"] = e.GasConsumed.ToString();
+            json["stack"] = e.Stack.Select(p => p.ToParameter().ToJson()).ToArray();
+            json["notifications"] = e.Notifications.Select(p =>
+            {
+                JObject notification = new JObject();
+                notification["contract"] = p.ScriptHash.ToString();
+                notification["state"] = p.State.ToParameter().ToJson();
+                return notification;
+            }).ToArray();
+            Directory.CreateDirectory(Settings.Default.Paths.ApplicationLogs);
+            string path = Path.Combine(Settings.Default.Paths.ApplicationLogs, $"{e.Transaction.Hash}.json");
+            File.WriteAllText(path, json.ToString());
+        }
+
+        private void PersistEventsOnApplicationExecuted(object sender, ApplicationExecutedEventArgs e)
+        {
+            var transactionHash = e.Transaction.Hash.ToString().Substring(2);
+            var blockHeight = ((LevelDBBlockchain)sender).Height;
+            var blockTime = Blockchain.Default.GetBlock(blockHeight).Timestamp;
+            Console.WriteLine("Executed txn: ${0}, block height: ${1}", transactionHash, blockHeight);
+
+            if (e.VMState.HasFlag(VMState.FAULT))
+            {
+                Console.WriteLine("Transaction faulted!");
+                return;
+            }
+
+            string[] contractHashList = Environment.GetEnvironmentVariable("CONTRACT_HASH_LIST").Split(null);
+            int index = -1;
+            foreach (var notification in e.Notifications)
+            {
+                index++;
+                var scriptHash = notification.ScriptHash.ToString().Substring(2);
+                if (!contractHashList.Contains(scriptHash)) return;
+
+                try
+                {
+                    var payload = notification.State.ToParameter();
+                    var stack = (VM.Types.Array)notification.State;
+                    string eventType = "";
+                    JArray eventPayload = new JArray();
+
+                    for (int i = 0; i < stack.Count; i++)
+                    {
+                        string t = stack[i].GetType().ToString();
+                        if (i == 0)
+                        {
+                            byte[] stackByteData = stack[i].GetByteArray();
+                            eventType = System.Text.Encoding.UTF8.GetString(stackByteData);
+                        }
+                        else
+                        {
+                            eventPayload.Add(stack.ToParameter().ToJson());
+                        }
+                    }
+
+                    var scEvent = new SmartContractEvent
+                    {
+                        blockNumber = blockHeight,
+                        transactionHash = transactionHash,
+                        contractHash = scriptHash,
+                        eventType = eventType,
+                        eventPayload = eventPayload,
+                        eventTime = blockTime,
+                    };
+
+                    WriteToPsql(scEvent);
+                }
+                catch (Exception ex)
+                {
+                    PrintErrorLogs(ex);
+                    LocalNode.Dispose();
+                    throw ex;
+                }
             }
         }
 
@@ -1102,102 +1158,24 @@ namespace Neo.Shell
             return dtDateTime;
         }
 
-        private bool OnStartCommand(string[] args)
+        private void PrintErrorLogs(Exception ex)
         {
-            switch (args[1].ToLower())
+            Console.WriteLine(ex.GetType());
+            Console.WriteLine(ex.Message);
+            Console.WriteLine(ex.StackTrace);
+            if (ex is AggregateException ex2)
             {
-                case "consensus":
-                    return OnStartConsensusCommand(args);
-                default:
-                    return base.OnCommand(args);
+                foreach (Exception inner in ex2.InnerExceptions)
+                {
+                    Console.WriteLine();
+                    PrintErrorLogs(inner);
+                }
             }
-        }
-
-        private bool OnStartConsensusCommand(string[] args)
-        {
-            if (consensus != null) return true;
-            if (Program.Wallet == null)
+            else if (ex.InnerException != null)
             {
-                Console.WriteLine("You have to open the wallet first.");
-                return true;
+                Console.WriteLine();
+                PrintErrorLogs(ex.InnerException);
             }
-            string log_dictionary = Path.Combine(AppContext.BaseDirectory, "Logs");
-            consensus = new ConsensusWithPolicy(LocalNode, Program.Wallet, log_dictionary);
-            ShowPrompt = false;
-            consensus.Start();
-            return true;
-        }
-
-        protected internal override void OnStop()
-        {
-            if (consensus != null) consensus.Dispose();
-            if (rpc != null) rpc.Dispose();
-            LocalNode.Dispose();
-            using (FileStream fs = new FileStream(PeerStatePath, FileMode.Create, FileAccess.Write, FileShare.None))
-            {
-                LocalNode.SaveState(fs);
-            }
-            Blockchain.Default.Dispose();
-        }
-
-        private bool OnUpgradeCommand(string[] args)
-        {
-            switch (args[1].ToLower())
-            {
-                case "wallet":
-                    return OnUpgradeWalletCommand(args);
-                default:
-                    return base.OnCommand(args);
-            }
-        }
-
-        private bool OnUpgradeWalletCommand(string[] args)
-        {
-            if (args.Length < 3)
-            {
-                Console.WriteLine("error");
-                return true;
-            }
-            string path = args[2];
-            if (Path.GetExtension(path) != ".db3")
-            {
-                Console.WriteLine("Can't upgrade the wallet file.");
-                return true;
-            }
-            if (!File.Exists(path))
-            {
-                Console.WriteLine("File does not exist.");
-                return true;
-            }
-            string password = ReadPassword("password");
-            if (password.Length == 0)
-            {
-                Console.WriteLine("cancelled");
-                return true;
-            }
-            string path_new = Path.ChangeExtension(path, ".json");
-            NEP6Wallet.Migrate(path_new, path, password).Save();
-            Console.WriteLine($"Wallet file upgrade complete. New wallet file has been auto-saved at: {path_new}");
-            return true;
-        }
-
-        private void LevelDBBlockchain_ApplicationExecuted(object sender, ApplicationExecutedEventArgs e)
-        {
-            JObject json = new JObject();
-            json["txid"] = e.Transaction.Hash.ToString();
-            json["vmstate"] = e.VMState;
-            json["gas_consumed"] = e.GasConsumed.ToString();
-            json["stack"] = e.Stack.Select(p => p.ToParameter().ToJson()).ToArray();
-            json["notifications"] = e.Notifications.Select(p =>
-            {
-                JObject notification = new JObject();
-                notification["contract"] = p.ScriptHash.ToString();
-                notification["state"] = p.State.ToParameter().ToJson();
-                return notification;
-            }).ToArray();
-            Directory.CreateDirectory(Settings.Default.Paths.ApplicationLogs);
-            string path = Path.Combine(Settings.Default.Paths.ApplicationLogs, $"{e.Transaction.Hash}.json");
-            File.WriteAllText(path, json.ToString());
         }
     }
 }
