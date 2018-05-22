@@ -36,6 +36,7 @@ namespace Neo.Shell
         public uint eventTime;
         public string eventType;
         public JArray eventPayload;
+        public uint eventIndex;
     }
 
     internal class MainService : ConsoleServiceBase
@@ -985,10 +986,9 @@ namespace Neo.Shell
             }
 
             string[] contractHashList = Environment.GetEnvironmentVariable("CONTRACT_HASH_LIST").Split(null);
-            int index = -1;
-            foreach (var notification in e.Notifications)
+            for (uint index = 0; index < e.Notifications.Length; index++)
             {
-                index++;
+                var notification = e.Notifications[index];
                 var scriptHash = notification.ScriptHash.ToString().Substring(2);
                 if (!contractHashList.Contains(scriptHash)) return;
 
@@ -1021,6 +1021,7 @@ namespace Neo.Shell
                         eventType = eventType,
                         eventPayload = eventPayload,
                         eventTime = blockTime,
+                        eventIndex = index,
                     };
 
                     WriteToPsql(scEvent);
