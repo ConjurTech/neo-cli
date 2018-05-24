@@ -990,7 +990,7 @@ namespace Neo.Shell
             {
                 var notification = e.Notifications[index];
                 var scriptHash = notification.ScriptHash.ToString().Substring(2);
-                if (!contractHashList.Contains(scriptHash)) return;
+                if (!contractHashList.Contains(scriptHash)) continue;
 
                 try
                 {
