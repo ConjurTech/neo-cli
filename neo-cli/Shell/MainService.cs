@@ -1089,9 +1089,9 @@ namespace Neo.Shell
                     conn.Open();
                     // Insert into events table
                     using (var cmd = new NpgsqlCommand(
-                        "INSERT INTO events (block_number, transaction_hash, contract_hash, event_type, event_payload, event_time, blockchain, " +
+                        "INSERT INTO events (block_number, transaction_hash, contract_hash, event_type, event_payload, event_time, event_index, blockchain, " +
                         "created_at, updated_at) " +
-                        "VALUES (@blockNumber, @transactionHash, @contractHash, @eventType, @eventPayload, @eventTime, @blockchain, " +
+                        "VALUES (@blockNumber, @transactionHash, @contractHash, @eventType, @eventPayload, @eventTime, @eventIndex, @blockchain, " +
                         "current_timestamp, current_timestamp)", conn))
                     {
                         cmd.Parameters.AddWithValue("blockchain", "neo");
@@ -1100,6 +1100,7 @@ namespace Neo.Shell
                         cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
                         cmd.Parameters.AddWithValue("eventType", contractEvent.eventType);
                         cmd.Parameters.AddWithValue("eventTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
+                        cmd.Parameters.AddWithValue("eventIndex", contractEvent.eventIndex);
                         cmd.Parameters.AddWithValue("eventPayload", NpgsqlDbType.Jsonb, contractEvent.eventPayload.ToString());
 
                         int nRows = cmd.ExecuteNonQuery();
