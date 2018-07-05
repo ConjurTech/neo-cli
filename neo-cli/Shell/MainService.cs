@@ -1114,7 +1114,7 @@ namespace Neo.Shell
                         cmd.Parameters.AddWithValue("contractHash", contractEvent.contractHash);
                         cmd.Parameters.AddWithValue("eventType", contractEvent.eventType);
                         cmd.Parameters.AddWithValue("eventTime", NpgsqlDbType.Timestamp, UnixTimeStampToDateTime(contractEvent.eventTime));
-                        cmd.Parameters.AddWithValue("eventIndex", contractEvent.eventIndex);
+                        cmd.Parameters.AddWithValue("eventIndex", NpgsqlDbType.Numeric, contractEvent.eventIndex);
                         cmd.Parameters.AddWithValue("eventPayload", NpgsqlDbType.Jsonb, contractEvent.eventPayload.ToString());
 
                         int nRows = cmd.ExecuteNonQuery();
