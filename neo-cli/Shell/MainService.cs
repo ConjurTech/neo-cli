@@ -1082,7 +1082,7 @@ namespace Neo.Shell
 
             WriteToEventTable(contractEvent);
 
-            /*if (contractEvent.eventType == "created")
+            if (contractEvent.eventType == "created")
             {
                 WriteToOfferTable(contractEvent);
             }
@@ -1090,7 +1090,7 @@ namespace Neo.Shell
             if (contractEvent.eventType == "filled")
             {
                 WriteToTradeTable(contractEvent);
-            }*/
+            }
 
         }
 
