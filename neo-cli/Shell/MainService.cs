@@ -1078,7 +1078,6 @@ namespace Neo.Shell
         private static void WriteToPsql(SmartContractEvent contractEvent)
         {
             Console.WriteLine(String.Format("Blockheight={0}", contractEvent.blockNumber));
-            Console.WriteLine(String.Format("Event {0} {1}", contractEvent.eventType, contractEvent.eventPayload));
 
             WriteToEventTable(contractEvent);
 
@@ -1096,6 +1095,7 @@ namespace Neo.Shell
 
         private static void WriteToEventTable(SmartContractEvent contractEvent)
         {
+            Console.WriteLine(String.Format("Event {0} {1}", contractEvent.eventType, contractEvent.eventPayload));
             string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
             try
             {
@@ -1129,7 +1129,7 @@ namespace Neo.Shell
                 if (ex.SqlState == "23505")
                 {
                     // this is a unique key violation, which is fine, so do nothing.
-                    Console.WriteLine("Already inserted, ignoring");
+                    Console.WriteLine("Event already inserted, ignoring");
                 }
                 else
                 {
@@ -1140,6 +1140,7 @@ namespace Neo.Shell
 
         private static void WriteToOfferTable(SmartContractEvent contractEvent)
         {
+            Console.WriteLine(String.Format("Write to offers {0} {1}", contractEvent.eventType, contractEvent.eventPayload));
             string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
             try
             {
@@ -1176,6 +1177,8 @@ namespace Neo.Shell
                         cmd.Parameters.AddWithValue("wantAmount", NpgsqlDbType.Numeric, wantAmount);
 
                         int nRows = cmd.ExecuteNonQuery();
+
+                        Console.WriteLine(String.Format("Rows inserted={0}", nRows));
                     }
                     conn.Close();
                 }
@@ -1185,7 +1188,7 @@ namespace Neo.Shell
                 if (ex.SqlState == "23505")
                 {
                     // this is a unique key violation, which is fine, so do nothing.
-                    Console.WriteLine("Already inserted, ignoring");
+                    Console.WriteLine("Offer already inserted, ignoring");
                 }
                 else
                 {
@@ -1196,6 +1199,7 @@ namespace Neo.Shell
 
         private static void WriteToTradeTable(SmartContractEvent contractEvent)
         {
+            Console.WriteLine(String.Format("Write to trades {0} {1}", contractEvent.eventType, contractEvent.eventPayload));
             string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
             try
             {
@@ -1230,6 +1234,8 @@ namespace Neo.Shell
                         cmd.Parameters.AddWithValue("blockchain", "neo");
 
                         int nRows = cmd.ExecuteNonQuery();
+
+                        Console.WriteLine(String.Format("Rows inserted={0}", nRows));
                     }
                     conn.Close();
                 }
@@ -1239,7 +1245,7 @@ namespace Neo.Shell
                 if (ex.SqlState == "23505")
                 {
                     // this is a unique key violation, which is fine, so do nothing.
-                    Console.WriteLine("Already inserted, ignoring");
+                    Console.WriteLine("Trade already inserted, ignoring");
                 }
                 else
                 {
