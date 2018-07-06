@@ -1083,21 +1083,33 @@ namespace Neo.Shell
 
             using (var conn = new NpgsqlConnection(connString))
             {
-                conn.Open();
 
-                WriteToEventTable(contractEvent, conn);
-
-                if (contractEvent.eventType == "created")
+                try
                 {
-                    WriteToOfferTable(contractEvent, conn);
-                }
+                    conn.Open();
 
-                if (contractEvent.eventType == "filled")
+                    WriteToEventTable(contractEvent, conn);
+
+                    if (contractEvent.eventType == "created")
+                    {
+                        WriteToOfferTable(contractEvent, conn);
+                    }
+
+                    if (contractEvent.eventType == "filled")
+                    {
+                        WriteToTradeTable(contractEvent, conn);
+                    }
+
+                    conn.Close();
+                }
+                catch (Exception ex)
                 {
-                    WriteToTradeTable(contractEvent, conn);
+                    if (conn != null && conn.State == System.Data.ConnectionState.Open)
+                    {
+                        conn.Close();
+                    }
+                    throw ex;
                 }
-
-                conn.Close();
             }
 
         }
