@@ -1087,6 +1087,7 @@ namespace Neo.Shell
                 try
                 {
                     conn.Open();
+		    Console.WriteLine(String.Format("Connection state={0}", conn.State));
 
                     WriteToEventTable(contractEvent, conn);
 
@@ -1101,11 +1102,13 @@ namespace Neo.Shell
                     }
 
                     conn.Close();
+		    Console.WriteLine(String.Format("Connection state={0}", conn.State));
                 }
                 catch (Exception ex)
                 {
                     if (conn != null && conn.State == System.Data.ConnectionState.Open)
                     {
+		    	Console.WriteLine(String.Format("Connection state={0}", conn.State));
                         conn.Close();
                     }
                     throw ex;
