@@ -977,7 +977,7 @@ namespace Neo.Shell
             var transactionHash = e.Transaction.Hash.ToString().Substring(2);
             var blockHeight = ((LevelDBBlockchain)sender).Height;
             var blockTime = Blockchain.Default.GetBlock(blockHeight).Timestamp;
-            Console.WriteLine("Executed txn: ${0}, block height: ${1}", transactionHash, blockHeight);
+            Console.WriteLine("Executed txn: {0}, block height: {1}", transactionHash, blockHeight);
 
             if (e.VMState.HasFlag(VMState.FAULT))
             {
@@ -1077,8 +1077,6 @@ namespace Neo.Shell
 
         private static void WriteToPsql(SmartContractEvent contractEvent)
         {
-            Console.WriteLine(String.Format("Blockheight={0}", contractEvent.blockNumber));
-
             string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
 
             using (var conn = new NpgsqlConnection(connString))
@@ -1087,7 +1085,6 @@ namespace Neo.Shell
                 try
                 {
                     conn.Open();
-		            Console.WriteLine(String.Format("Connection {0}", conn.State));
 
                     WriteToEventTable(contractEvent, conn);
 
@@ -1095,22 +1092,16 @@ namespace Neo.Shell
                     {
                         WriteToOfferTable(contractEvent, conn);
                     }
-
-                    if (contractEvent.eventType == "filled")
+                    else if (contractEvent.eventType == "filled")
                     {
                         WriteToTradeTable(contractEvent, conn);
                     }
-                }
-                catch (Exception ex)
-                {
-                    throw ex;
                 }
                 finally
                 {
                     if (conn != null && conn.State == System.Data.ConnectionState.Open)
                     {
                         conn.Close();
-                        Console.WriteLine(String.Format("Connection {0}", conn.State));
                     }
                 }
             }
@@ -1119,7 +1110,7 @@ namespace Neo.Shell
 
         private static void WriteToEventTable(SmartContractEvent contractEvent, NpgsqlConnection conn)
         {
-            Console.WriteLine(String.Format("Event {0} {1}", contractEvent.eventType, contractEvent.eventPayload));
+            Console.WriteLine(String.Format("Inserting {0} event {1}, block height: {2}", contractEvent.eventType, contractEvent.eventPayload, contractEvent.blockNumber));
             try
             {
                 using (var cmd = new NpgsqlCommand(
@@ -1158,7 +1149,7 @@ namespace Neo.Shell
 
         private static void WriteToOfferTable(SmartContractEvent contractEvent, NpgsqlConnection conn)
         {
-            Console.WriteLine(String.Format("Offer {0}", contractEvent.eventPayload));
+            Console.WriteLine(String.Format("Inserting Offer {0}, block height: {1}", contractEvent.eventPayload, contractEvent.blockNumber));
 
             try
             {
@@ -1212,7 +1203,7 @@ namespace Neo.Shell
 
         private static void WriteToTradeTable(SmartContractEvent contractEvent, NpgsqlConnection conn)
         {
-            Console.WriteLine(String.Format("Trade {0}", contractEvent.eventPayload));
+            Console.WriteLine(String.Format("Inserting {0}, block height: {1}", contractEvent.eventPayload, contractEvent.blockNumber));
 
             string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
             try
