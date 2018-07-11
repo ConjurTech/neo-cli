@@ -1077,8 +1077,9 @@ namespace Neo.Shell
 
         private static void WriteToPsql(SmartContractEvent contractEvent)
         {
-            string[] connStringList = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING_LIST").Split(null);
-
+            // Using | token to split for now. Need to improve later
+            string[] connStringList = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING_LIST").Split("|");
+            
             foreach (var connString in connStringList)
             {
                 using (var conn = new NpgsqlConnection(connString))
