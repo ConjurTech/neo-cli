@@ -873,7 +873,7 @@ namespace Neo.Shell
                 }
             });
         }
-        
+
         private bool OnStartCommand(string[] args)
         {
             switch (args[1].ToLower())
@@ -1077,35 +1077,38 @@ namespace Neo.Shell
 
         private static void WriteToPsql(SmartContractEvent contractEvent)
         {
-            string connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+            string[] connStringList = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING_LIST").Split(null);
 
-            using (var conn = new NpgsqlConnection(connString))
+            foreach (var connString in connStringList)
             {
-
-                try
+                using (var conn = new NpgsqlConnection(connString))
                 {
-                    conn.Open();
 
-                    WriteToEventTable(contractEvent, conn);
-
-                    if (contractEvent.eventType == "created")
+                    try
                     {
-                        WriteToOfferTable(contractEvent, conn);
+                        conn.Open();
+
+                        WriteToEventTable(contractEvent, conn);
+
+                        if (contractEvent.eventType == "created")
+                        {
+                            WriteToOfferTable(contractEvent, conn);
+                        }
+                        else if (contractEvent.eventType == "filled")
+                        {
+                            WriteToTradeTable(contractEvent, conn);
+                        }
                     }
-                    else if (contractEvent.eventType == "filled")
+                    finally
                     {
-                        WriteToTradeTable(contractEvent, conn);
+                        if (conn != null && conn.State == System.Data.ConnectionState.Open)
+                        {
+                            conn.Close();
+                        }
                     }
                 }
-                finally
-                {
-                    if (conn != null && conn.State == System.Data.ConnectionState.Open)
-                    {
-                        conn.Close();
-                    }
-                }
+
             }
-
         }
 
         private static void WriteToEventTable(SmartContractEvent contractEvent, NpgsqlConnection conn)
