@@ -1,4 +1,5 @@
 ﻿{
+<<<<<<< HEAD
     "ApplicationConfiguration": {
         "Paths": {
             "Chain": "Chains/Switcheo_Notif"
@@ -12,5 +13,26 @@
             "SslCert": "",
             "SslCertPassword": ""
         }
+=======
+  "ApplicationConfiguration": {
+    "Paths": {
+      "Chain": "Chain_{0}",
+      "ApplicationLogs": "ApplicationLogs_{0}"
+    },
+    "P2P": {
+      "Port": 10333,
+      "WsPort": 10334
+    },
+    "RPC": {
+      "Port": 10332,
+      "SslCert": "",
+      "SslCertPassword": ""
+    },
+    "UnlockWallet": {
+      "Path": "",
+      "Password": "",
+      "StartConsensus": false,
+      "IsActive": false
+>>>>>>> v2.8.0
     }
 }
