@@ -1,17 +1,23 @@
 ﻿{
-    "ApplicationConfiguration": {
-      "Paths": {
-        "Chain": "Chains/Switcheo_Notif",
-        "ApplicationLogs": "ApplicationLogs_{0}"
-      },
-        "P2P": {
-            "Port": 20333,
-            "WsPort": 20334
-        },
-        "RPC": {
-            "Port": 20331,
-            "SslCert": "",
-            "SslCertPassword": ""
-        }
+  "ApplicationConfiguration": {
+    "Paths": {
+      "Chain": "/opt/Chain",
+      "Index": "/opt/Index"
+    },
+    "P2P": {
+      "Port": 20333,
+      "WsPort": 20334
+    },
+    "RPC": {
+      "Port": 20331,
+      "SslCert": "",
+      "SslCertPassword": ""
+    },
+    "UnlockWallet": {
+      "Path": "",
+      "Password": "",
+      "StartConsensus": false,
+      "IsActive": false
     }
+  }
 }
