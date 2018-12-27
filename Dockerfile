@@ -17,6 +17,8 @@ COPY . ./
 
 # Remove neo blockchain package from neo-cli project, referencing it to the local NeoBlockchain Library
 RUN dotnet remove neo-cli/*.csproj package neo
+RUN mkdir /opt/neoLib 
+RUN git clone https://github.com/ConjurTech/neo.git --branch ipersistance-plugin-enhancement --single-branch /opt/neoLib
 RUN dotnet sln *.sln add /opt/neoLib/neo/neo.csproj
 RUN dotnet add neo-cli/*.csproj reference /opt/neoLib/neo/neo.csproj
 
