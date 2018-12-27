@@ -17,6 +17,7 @@ COPY . ./
 
 # Remove neo blockchain package from neo-cli project, referencing it to the local NeoBlockchain Library
 RUN dotnet remove *.csproj package neo
+RUN ls
 RUN dotnet sln ../*.sln add /opt/neoLib/neo/neo.csproj
 RUN dotnet add *.csproj reference /opt/neoLib/neo/neo.csproj
 
