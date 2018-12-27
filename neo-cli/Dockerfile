@@ -8,17 +8,18 @@ sqlite3 \
 libsqlite3-dev \
 libunwind8-dev
 
-# Remove neo blockchain package from neo-cli project, referencing it to the local NeoBlockchain Library
-RUN dotnet remove *.csproj package neo
-RUN dotnet sln *.sln add /opt/neoLib/neo/neo.csproj
-RUN dotnet add *.csproj reference /opt/neoLib/neo/neo.csproj
-
 # Copy csproj and restore as distinct layers
 COPY *.csproj ./
 RUN dotnet restore
 
 # Copy everything else and build
 COPY . ./
+
+# Remove neo blockchain package from neo-cli project, referencing it to the local NeoBlockchain Library
+RUN dotnet remove *.csproj package neo
+RUN dotnet sln *.sln add /opt/neoLib/neo/neo.csproj
+RUN dotnet add *.csproj reference /opt/neoLib/neo/neo.csproj
+
 RUN dotnet publish -c Release -o out
 
 # Build runtime image
