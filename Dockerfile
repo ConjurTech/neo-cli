@@ -24,10 +24,10 @@ RUN dotnet add neo-cli/*.csproj reference /opt/neoLib/neo/neo.csproj
 
 WORKDIR /app/neo-cli
 
-RUN dotnet publish *.csproj -c Release -o out
+RUN dotnet publish -c Release -o out
 
 # Build runtime image
 FROM microsoft/aspnetcore:2.0
-WORKDIR /app/neo-cli
-COPY --from=build-env /app/out .
+WORKDIR /app
+COPY --from=build-env /app/neo-cli/out .
 ENTRYPOINT ["dotnet", "neo-cli.dll"]
