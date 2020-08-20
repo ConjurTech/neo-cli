@@ -13,7 +13,7 @@ RUN dotnet restore
 
 # Copy everything else and build
 COPY . ./
-RUN dotnet publish -c Release -o out
+RUN dotnet publish -c Release -r linux-x64
 
 # Build runtime image
 FROM microsoft/dotnet:2.1-aspnetcore-runtime
