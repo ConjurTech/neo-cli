@@ -30,6 +30,8 @@
   <ItemGroup>
     <PackageReference Include="Neo" Version="2.12.1" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.5.0" />
+    <PackageReference Include="Npgsql" Version="4.0.3" />
+    <PackageReference Include="SharpRaven" Version="2.4.0" />
   </ItemGroup>
 
 </Project>
