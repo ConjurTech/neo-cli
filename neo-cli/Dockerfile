@@ -13,6 +13,7 @@ RUN dotnet restore
 
 # Copy everything else and build
 COPY . ./
+RUN dotnet restore
 RUN dotnet publish -c Release -r linux-x64 -o out
 
 # Build runtime image
